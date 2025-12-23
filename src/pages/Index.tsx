@@ -4,6 +4,7 @@ import { ProfileHero } from '@/components/ProfileHero';
 import { PipelineSimulator } from '@/components/PipelineSimulator';
 import { StageDetails } from '@/components/StageDetails';
 import { RunPipelineModal } from '@/components/RunPipelineModal';
+import { OutputReport } from '@/components/OutputReport';
 import { usePipeline } from '@/hooks/usePipeline';
 
 const Index = () => {
@@ -38,6 +39,8 @@ const Index = () => {
             <StageDetails stage={selectedStage} />
           </div>
         </div>
+
+        <OutputReport stages={stages} releaseStatus={releaseStatus} />
       </main>
 
       <RunPipelineModal
