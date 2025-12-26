@@ -42,7 +42,7 @@ const Index = () => {
         </div>
 
         <OutputReport stages={stages} releaseStatus={releaseStatus} />
-                
+        
         <EvidenceVault />
       </main>
 
