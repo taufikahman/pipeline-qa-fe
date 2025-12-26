@@ -9,8 +9,8 @@ export function ProfileHero() {
             <Sparkles className="text-primary-foreground" size={24} />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1">
-              Firaga Pratama
+            <h1 className="text-2xl                 md:text-3xl font-bold text-foreground mb-1">
+              Taufik Ahman
             </h1>
             <p className="text-muted-foreground mb-3">
               QA Engineer — <span className="text-primary font-medium">Playwright</span> ·{' '}

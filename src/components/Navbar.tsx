@@ -41,13 +41,21 @@ export function Navbar({ onRunPipeline, onReset }: NavbarProps) {
               <Archive size={14} className="mr-1.5" />
               Evidence Vault
             </Button>
+            <a href="/Resume_TaufikAhman.pdf" download>
             <Button variant="ghost" size="sm">
               <Download size={14} className="mr-1.5" />
-              CV
+              Download CV
             </Button>
-            <Button variant="ghost" size="icon" className="h-9 w-9">
-              <Github size={16} />
-            </Button>
+            </a>
+            <a
+              href="https://github.com/taufikahman"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button variant="ghost" size="icon" className="h-9 w-9">
+                <Github size={16} />
+              </Button>
+            </a>
           </div>
 
           {/* Mobile Menu Button */}
