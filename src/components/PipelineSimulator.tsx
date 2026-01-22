@@ -39,7 +39,7 @@ export function PipelineSimulator({
   };
 
   return (
-    <div className={cn(
+      <div className={cn(
       "bg-card border rounded-2xl p-6 shadow-sm transition-colors",
       isViewingHistory 
         ? "border-amber-500/50 bg-amber-500/5" 

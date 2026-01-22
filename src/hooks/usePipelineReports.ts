@@ -25,6 +25,7 @@ export function usePipelineReports() {
             description: s.description || '',
             status: s.status as Stage['status'],
             logs: s.logs || [],
+            triageNote: s.triageNote || '',
           })),
           releaseStatus: entry.status === 'SUCCESS' ? 'passed' : 
                         entry.status === 'BLOCKED' ? 'blocked' : 'pending',
@@ -65,13 +66,16 @@ export function usePipelineReports() {
 
     setReports(prev => [newReport, ...prev]);
 
-    // Save to API in background
+    // Save to API in background with full stage data including logs
     try {
       const apiStages = stages.map(s => ({
         id: s.id,
         name: s.name,
         type: s.type,
         status: s.status,
+        description: s.description || '',
+        triageNote: s.triageNote || '',
+        logs: s.logs || [],
       }));
       
       const response = await savePipelineReportToApi(apiStages, releaseStatus);
@@ -84,6 +88,7 @@ export function usePipelineReports() {
             : r
         ));
         console.log('Pipeline report saved to API:', response.data);
+        console.log(`Saved ${response.data.stagesCount} stages and ${response.data.logsCount} logs`);
       }
     } catch (err) {
       console.error('Error saving report to API:', err);

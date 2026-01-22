@@ -27,6 +27,22 @@ export interface RunPipelineResponse {
   error?: string;
 }
 
+export interface LogEntry {
+  prefix: string;
+  message: string;
+  type: 'normal' | 'success' | 'error' | 'warning';
+}
+
+export interface StageData {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  description?: string;
+  triageNote?: string;
+  logs?: LogEntry[];
+}
+
 export interface PipelineHistoryEntry {
   id: number;
   pipeline_report_id: number | null;
@@ -43,14 +59,7 @@ export interface PipelineHistoryEntry {
     release_status: string;
     created_at: string;
   } | null;
-  stages: Array<{
-    id: string;
-    name: string;
-    type: string;
-    status: string;
-    description?: string;
-    logs?: any[];
-  }>;
+  stages: StageData[];
 }
 
 export interface PipelineHistory {
@@ -173,10 +182,18 @@ export async function getPipelineById(id: number): Promise<any> {
 }
 
 /**
- * Save pipeline report and create history entry
+ * Save pipeline report and create history entry (with stage logs)
  */
 export async function savePipelineReportToApi(
-  stages: Array<{ id: string; name: string; type: string; status: string }>,
+  stages: Array<{
+    id: string;
+    name: string;
+    type: string;
+    status: string;
+    description?: string;
+    triageNote?: string;
+    logs?: LogEntry[];
+  }>,
   releaseStatus: 'pending' | 'passed' | 'blocked'
 ): Promise<{
   success: boolean;
@@ -198,6 +215,7 @@ export async function savePipelineReportToApi(
       created_at: string;
     };
     stagesCount: number;
+    logsCount: number;
   };
 }> {
   const response = await fetch(`${API_BASE_URL}/pipelines/save-report`, {

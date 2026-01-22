@@ -6,11 +6,19 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
+    host: "0.0.0.0", // penting supaya bisa diakses lewat NetBird
     port: 8081,
   },
-  plugins: [react(), mode === 'development' && componentTagger()].filter(Boolean),
-  base: mode === 'production' ? "/pipeline-qa/" : "/",
+
+  plugins: [
+    react(),
+    mode === "development" && componentTagger(),
+  ].filter(Boolean),
+
+  // karena pakai subdomain (pipeline-qa.fikcreative.my.id)
+  // app harus di-root path
+  base: "/",
+
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
