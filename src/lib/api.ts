@@ -1,5 +1,179 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
+/**
+ * Register a new user with organization
+ */
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  full_name?: string;
+  organization_name: string;
+}
+
+export interface RegisterResponse {
+  message: string;
+  user: {
+    id: string;
+    email: string;
+    full_name: string | null;
+  };
+  organization: {
+    id: string;
+    name: string;
+  };
+}
+
+export async function registerUser(data: RegisterRequest): Promise<RegisterResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.message || 'Registration failed');
+  }
+
+  return result;
+}
+
+/**
+ * Login user
+ */
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  role: string;
+  logo_url: string | null;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  full_name: string | null;
+  is_email_verified: boolean;
+  is_active: boolean;
+  avatar_url: string | null;
+}
+
+export interface LoginResponse {
+  message: string;
+  user: AuthUser;
+  organizations: Organization[];
+}
+
+export async function loginUser(data: LoginRequest): Promise<LoginResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.message || 'Login failed');
+  }
+
+  return result;
+}
+
+/**
+ * Change password
+ */
+export interface ChangePasswordRequest {
+  user_id: string;
+  current_password: string;
+  new_password: string;
+}
+
+export async function changePassword(data: ChangePasswordRequest): Promise<{ message: string }> {
+  const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.message || 'Failed to change password');
+  }
+
+  return result;
+}
+
+/**
+ * Upload user avatar
+ */
+export async function uploadAvatar(userId: string, file: File): Promise<{ message: string; avatar_url: string }> {
+  const formData = new FormData();
+  formData.append('avatar', file);
+  formData.append('user_id', userId);
+
+  const response = await fetch(`${API_BASE_URL}/auth/upload-avatar`, {
+    method: 'PUT',
+    body: formData,
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.message || 'Failed to upload avatar');
+  }
+
+  return result;
+}
+
+/**
+ * Upload organization logo (owner/admin only)
+ */
+export async function uploadOrgLogo(
+  organizationId: string,
+  userId: string,
+  file: File
+): Promise<{ message: string; logo_url: string }> {
+  const formData = new FormData();
+  formData.append('logo', file);
+  formData.append('organization_id', organizationId);
+  formData.append('user_id', userId);
+
+  const response = await fetch(`${API_BASE_URL}/auth/upload-org-logo`, {
+    method: 'PUT',
+    body: formData,
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.message || 'Failed to upload organization logo');
+  }
+
+  return result;
+}
+
+/**
+ * Get the full URL for an uploaded file
+ */
+export function getUploadUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  return `${base}${path}`;
+}
+
 export interface RunPipelineResponse {
   success: boolean;
   data: {
@@ -229,6 +403,58 @@ export async function savePipelineReportToApi(
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.message || 'Failed to save pipeline report');
+  }
+
+  return response.json();
+}
+
+/**
+ * Generate test cases via N8N webhook
+ */
+export async function generateTestCases(data: {
+  type: 'jira' | 'manual';
+  content: string;
+  metadata?: any;
+}): Promise<{ success: boolean; data: any; message: string }> {
+  const response = await fetch(`${API_BASE_URL}/test-cases/generate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to generate test cases');
+  }
+
+  return response.json();
+}
+
+/**
+ * Generate test cases with file upload (PDF)
+ */
+export async function generateTestCasesWithFile(
+  file: File,
+  type: 'jira' | 'manual',
+  metadata?: any
+): Promise<{ success: boolean; data: any; message: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('type', type);
+  if (metadata) {
+    formData.append('metadata', JSON.stringify(metadata));
+  }
+
+  const response = await fetch(`${API_BASE_URL}/test-cases/generate-with-file`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to generate test cases from file');
   }
 
   return response.json();

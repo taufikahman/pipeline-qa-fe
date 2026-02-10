@@ -1,25 +1,35 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="h-full">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CI Pipeline | Taufik Ahman - QA Engineer Portfolio</title>
-    <meta name="description" content="Interactive CI Pipeline showcasing QA engineering skills with Playwright, Postman, and k6. Explore automated testing, quality gates, and release confidence." />
+    <title>QA Testing Dashboard | Taufik Ahman - QA Engineer Portfolio</title>
+    <meta name="description" content="Interactive QA Testing Dashboard featuring CI Pipeline Simulator and k6 Performance Testing. Explore automated testing, quality gates, and performance monitoring." />
     <meta name="author" content="Taufik Ahman" />
     <link rel="canonical" href="/" />
 
-    <meta property="og:title" content="CI Pipeline | QA Engineer Portfolio" />
-    <meta property="og:description" content="Interactive CI Pipeline showcasing QA engineering skills with Playwright, Postman, and k6." />
+    <meta property="og:title" content="QA Testing Dashboard | QA Engineer Portfolio" />
+    <meta property="og:description" content="Interactive QA Testing Dashboard featuring CI Pipeline Simulator and k6 Performance Testing with automated testing and quality gates." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@Lovable" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    
+    <script>
+      // Prevent flash of unstyled content
+      try {
+        const theme = localStorage.getItem('theme') || 'system';
+        if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    </script>
   </head>
 
-  <body>
-    <div id="root"></div>
+  <body class="h-full">
+    <div id="root" class="h-full"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

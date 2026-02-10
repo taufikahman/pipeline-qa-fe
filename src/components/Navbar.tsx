@@ -31,7 +31,7 @@ export function Navbar({ onRunPipeline, onReset }: NavbarProps) {
           {/* Logo / Brand */}
           <div className="flex items-center gap-3">
             <img 
-              src={`${import.meta.env.BASE_URL}logo-fik.svg`} 
+              src={`${import.meta.env.BASE_URL}logo.svg`} 
               alt="Logo" 
               className="w-12 h-12 rounded-lg"
             />
