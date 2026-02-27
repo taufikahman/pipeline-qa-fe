@@ -11,12 +11,14 @@ export default function AITestCase() {
   const [summary, setSummary] = useState<WebhookSummary | null>(null);
   const [generationId, setGenerationId] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [storyTitle, setStoryTitle] = useState<string>('');
 
   const handleInputSubmit = async (data: { type: 'jira' | 'manual', content: string, metadata?: any, file?: File, files?: File[] }) => {
     setIsGenerating(true);
     setTestCases([]);
     setSummary(null);
     setGenerationId('');
+    setStoryTitle(data.metadata?.storyTitle || '');
     toast.loading('Generating test cases... This may take a moment.', { id: 'generating' });
 
     try {
@@ -96,6 +98,7 @@ export default function AITestCase() {
             <TestCaseResults 
               testCases={testCases} 
               generationId={generationId}
+              storyTitle={storyTitle}
             />
           )}
         </div>

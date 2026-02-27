@@ -516,6 +516,206 @@ export async function deleteScreenshot(id: number): Promise<{ success: boolean; 
   return result;
 }
 
+// ─── Test Case Management ────────────────────────────────────────────────
+
+export interface ManagedTestCase {
+  id: number;
+  suite_id: number;
+  tc_id: string;
+  title: string;
+  type: 'MANUAL' | 'AUTOMATED';
+  behavior: 'POSITIVE' | 'NEGATIVE' | 'EDGE_CASE' | 'PERFORMANCE';
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  description: string | null;
+  pre_conditions: string | null;
+  post_conditions: string | null;
+  steps: Array<{ action: string; expected: string }>;
+  assigned_to: string | null;
+  component: string | null;
+  organization_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TestSuite {
+  id: number;
+  name: string;
+  description: string | null;
+  organization_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TestCaseDraft {
+  id: number;
+  generation_id: string | null;
+  title: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  test_cases_data: any[];
+  summary: WebhookSummary | null;
+  target_suite_id: number | null;
+  organization_id: string | null;
+  created_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Suites ──
+
+export async function getSuites(): Promise<{ success: boolean; data: TestSuite[] }> {
+  const response = await fetch(`${API_BASE_URL}/tc-management/suites`);
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to fetch suites');
+  return result;
+}
+
+export async function createSuite(data: { name: string; description?: string; organization_id?: string; created_by?: string }): Promise<{ success: boolean; data: TestSuite }> {
+  const response = await fetch(`${API_BASE_URL}/tc-management/suites`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to create suite');
+  return result;
+}
+
+export async function updateSuite(id: number, data: { name?: string; description?: string }): Promise<{ success: boolean; data: TestSuite }> {
+  const response = await fetch(`${API_BASE_URL}/tc-management/suites/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to update suite');
+  return result;
+}
+
+export async function deleteSuite(id: number): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(`${API_BASE_URL}/tc-management/suites/${id}`, { method: 'DELETE' });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to delete suite');
+  return result;
+}
+
+// ── Test Cases ──
+
+export async function getTestCases(suiteId?: number): Promise<{ success: boolean; data: ManagedTestCase[] }> {
+  const query = suiteId ? `?suite_id=${suiteId}` : '';
+  const response = await fetch(`${API_BASE_URL}/tc-management/cases${query}`);
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to fetch test cases');
+  return result;
+}
+
+export async function getTestCaseById(id: number): Promise<{ success: boolean; data: ManagedTestCase }> {
+  const response = await fetch(`${API_BASE_URL}/tc-management/cases/${id}`);
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to fetch test case');
+  return result;
+}
+
+export async function createTestCase(data: Partial<ManagedTestCase>): Promise<{ success: boolean; data: ManagedTestCase }> {
+  const response = await fetch(`${API_BASE_URL}/tc-management/cases`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to create test case');
+  return result;
+}
+
+export async function updateTestCase(id: number, data: Partial<ManagedTestCase>): Promise<{ success: boolean; data: ManagedTestCase }> {
+  const response = await fetch(`${API_BASE_URL}/tc-management/cases/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to update test case');
+  return result;
+}
+
+export async function deleteTestCase(id: number): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(`${API_BASE_URL}/tc-management/cases/${id}`, { method: 'DELETE' });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to delete test case');
+  return result;
+}
+
+// ── Drafts ──
+
+export async function getDrafts(status?: string): Promise<{ success: boolean; data: TestCaseDraft[] }> {
+  const query = status ? `?status=${status}` : '';
+  const response = await fetch(`${API_BASE_URL}/tc-management/drafts${query}`);
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to fetch drafts');
+  return result;
+}
+
+export async function getDraftById(id: number): Promise<{ success: boolean; data: TestCaseDraft }> {
+  const response = await fetch(`${API_BASE_URL}/tc-management/drafts/${id}`);
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to fetch draft');
+  return result;
+}
+
+export async function saveDraft(data: {
+  generation_id?: string;
+  title: string;
+  test_cases_data: any[];
+  summary?: WebhookSummary | null;
+  target_suite_id?: number | null;
+  organization_id?: string;
+  created_by?: string;
+}): Promise<{ success: boolean; data: TestCaseDraft }> {
+  const response = await fetch(`${API_BASE_URL}/tc-management/drafts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to save draft');
+  return result;
+}
+
+export async function updateDraft(id: number, data: Partial<TestCaseDraft>): Promise<{ success: boolean; data: TestCaseDraft }> {
+  const response = await fetch(`${API_BASE_URL}/tc-management/drafts/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to update draft');
+  return result;
+}
+
+export async function deleteDraft(id: number): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(`${API_BASE_URL}/tc-management/drafts/${id}`, { method: 'DELETE' });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to delete draft');
+  return result;
+}
+
+export async function approveDraft(id: number, suiteId?: number): Promise<{
+  success: boolean;
+  data: { draft: TestCaseDraft; suite_id: number; created_count: number };
+  message: string;
+}> {
+  const response = await fetch(`${API_BASE_URL}/tc-management/drafts/${id}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ suite_id: suiteId }),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to approve draft');
+  return result;
+}
+
 // ─── Test Case Generation (existing) ────────────────────────────────────
 
 export interface GenerateResponse {
