@@ -409,52 +409,149 @@ export async function savePipelineReportToApi(
 }
 
 /**
- * Generate test cases via N8N webhook
+ * Webhook response types
  */
-export async function generateTestCases(data: {
-  type: 'jira' | 'manual';
-  content: string;
-  metadata?: any;
-}): Promise<{ success: boolean; data: any; message: string }> {
-  const response = await fetch(`${API_BASE_URL}/test-cases/generate`, {
+export interface WebhookTestCase {
+  tc_number: string;
+  name: string;
+  status: string;
+  objective: string;
+  precondition: string;
+  steps: string;
+  expectedResult: string;
+  labels: string;
+  priority: string;
+  component: string;
+  operatingSystem: string;
+}
+
+export interface WebhookSummary {
+  total: number;
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+}
+
+export interface WebhookResponse {
+  generationId: string;
+  summary: WebhookSummary;
+  tc_data: WebhookTestCase[];
+}
+
+// ─── Screenshots ─────────────────────────────────────────────────────────
+
+export interface ScreenshotRecord {
+  id: number;
+  original_name: string;
+  file_name: string;
+  mime_type: string;
+  size: number;
+  storage_key: string;
+  url: string;
+  web_content_link: string | null;
+  thumbnail_link: string | null;
+  uploaded_by: string | null;
+  tags: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScreenshotUploadResponse {
+  success: boolean;
+  message: string;
+  data: ScreenshotRecord[];
+}
+
+export interface ScreenshotHistoryResponse {
+  success: boolean;
+  data: ScreenshotRecord[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export async function uploadScreenshots(
+  files: File[],
+  options?: { uploaded_by?: string; tags?: string }
+): Promise<ScreenshotUploadResponse> {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('images', file));
+  if (options?.uploaded_by) formData.append('uploaded_by', options.uploaded_by);
+  if (options?.tags) formData.append('tags', options.tags);
+
+  const response = await fetch(`${API_BASE_URL}/screenshots/upload`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
+    body: formData,
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to generate test cases');
-  }
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Upload failed');
+  return result;
+}
 
-  return response.json();
+export async function getScreenshotHistory(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}): Promise<ScreenshotHistoryResponse> {
+  const query = new URLSearchParams();
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.search) query.set('search', params.search);
+
+  const response = await fetch(`${API_BASE_URL}/screenshots/history?${query}`);
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to fetch history');
+  return result;
+}
+
+export async function deleteScreenshot(id: number): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(`${API_BASE_URL}/screenshots/${id}`, { method: 'DELETE' });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Failed to delete');
+  return result;
+}
+
+// ─── Test Case Generation (existing) ────────────────────────────────────
+
+export interface GenerateResponse {
+  success: boolean;
+  data: WebhookResponse;
+  message: string;
 }
 
 /**
- * Generate test cases with file upload (PDF)
+ * Generate test cases via N8N webhook
+ * Sends title_story, description_story, and optional images as multipart/form-data
  */
-export async function generateTestCasesWithFile(
-  file: File,
-  type: 'jira' | 'manual',
-  metadata?: any
-): Promise<{ success: boolean; data: any; message: string }> {
+export async function generateTestCasesWebhook(data: {
+  title_story: string;
+  description_story: string;
+  images?: File[];
+}): Promise<GenerateResponse> {
   const formData = new FormData();
-  formData.append('file', file);
-  formData.append('type', type);
-  if (metadata) {
-    formData.append('metadata', JSON.stringify(metadata));
+  formData.append('title_story', data.title_story);
+  formData.append('description_story', data.description_story);
+
+  // Append images if provided
+  if (data.images && data.images.length > 0) {
+    data.images.forEach((image) => {
+      formData.append('images', image);
+    });
   }
 
-  const response = await fetch(`${API_BASE_URL}/test-cases/generate-with-file`, {
+  const response = await fetch(`${API_BASE_URL}/test-cases/generate`, {
     method: 'POST',
     body: formData,
   });
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.message || 'Failed to generate test cases from file');
+    throw new Error(error.message || 'Failed to generate test cases');
   }
 
   return response.json();

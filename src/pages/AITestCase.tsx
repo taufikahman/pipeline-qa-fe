@@ -1,105 +1,52 @@
 import { useState } from 'react';
-import { Sparkles, Settings } from 'lucide-react';
+import { Sparkles, Loader2, BarChart3, AlertTriangle, AlertCircle, Info, ArrowDown } from 'lucide-react';
 import { TestCaseInput } from '@/components/test-case-input';
-import { ConfigPanel, TestCaseConfig } from '@/components/config-panel';
 import { TestCaseResults } from '@/components/test-case-results';
-import { generateTestCases, TestCase } from '@/components/test-case-generator';
-import { generateTestCases as generateTestCasesAPI, generateTestCasesWithFile } from '@/lib/api';
+import { generateTestCasesWebhook, WebhookTestCase, WebhookSummary } from '@/lib/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 
 export default function AITestCase() {
-  const [config, setConfig] = useState<TestCaseConfig>({
-    testType: 'functional',
-    coverage: 70,
-    includeNegative: true,
-    includeEdgeCases: true,
-    includePerformance: false,
-    priority: 'all'
-  });
-
-  const [testCases, setTestCases] = useState<TestCase[]>([]);
-  const [sourceInfo, setSourceInfo] = useState<{ type: string; metadata?: any; content?: string } | null>(null);
+  const [testCases, setTestCases] = useState<WebhookTestCase[]>([]);
+  const [summary, setSummary] = useState<WebhookSummary | null>(null);
+  const [generationId, setGenerationId] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleInputSubmit = async (data: { type: 'jira' | 'manual', content: string, metadata?: any, file?: File }) => {
+  const handleInputSubmit = async (data: { type: 'jira' | 'manual', content: string, metadata?: any, file?: File, files?: File[] }) => {
     setIsGenerating(true);
-    toast.loading('Sending data to N8N webhook...', { id: 'generating' });
+    setTestCases([]);
+    setSummary(null);
+    setGenerationId('');
+    toast.loading('Generating test cases... This may take a moment.', { id: 'generating' });
 
     try {
-      let response;
-      
-      // If there's a file, use the file upload endpoint
-      if (data.file) {
-        response = await generateTestCasesWithFile(data.file, data.type, data.metadata);
-      } else {
-        // Otherwise, send the text content
-        response = await generateTestCasesAPI({
-          type: data.type,
-          content: data.content,
-          metadata: data.metadata
-        });
-      }
+      const response = await generateTestCasesWebhook({
+        title_story: data.metadata?.storyTitle || '',
+        description_story: data.content,
+        images: data.files
+      });
 
-      // For now, still generate mock test cases locally
-      // The webhook response will be logged and can be processed later
-      console.log('N8N Webhook Response:', response);
-      
-      const generated = generateTestCases(data, config);
-      setTestCases(generated);
-      setSourceInfo({ ...data, content: data.content });
-      setIsGenerating(false);
-      toast.success(`Data sent to webhook! Generated ${generated.length} test cases!`, { id: 'generating' });
+      console.log('Webhook Response:', response);
+
+      if (response.success && response.data) {
+        const { generationId: genId, summary: sum, tc_data } = response.data;
+
+        setGenerationId(genId || '');
+        setSummary(sum || null);
+        setTestCases(tc_data || []);
+        setIsGenerating(false);
+
+        const total = tc_data?.length || 0;
+        toast.success(`Generated ${total} test cases!`, { id: 'generating' });
+      } else {
+        setIsGenerating(false);
+        toast.error('Webhook returned unexpected response', { id: 'generating' });
+      }
     } catch (error: any) {
       console.error('Error calling webhook:', error);
       setIsGenerating(false);
       toast.error(`Error: ${error.message}`, { id: 'generating' });
-      
-      // Fallback to local generation
-      const generated = generateTestCases(data, config);
-      setTestCases(generated);
-      setSourceInfo({ ...data, content: data.content });
-      toast.info(`Fallback: Generated ${generated.length} test cases locally`, { duration: 3000 });
     }
-  };
-  
-  const handleRegenerate = () => {
-    if (!sourceInfo) return;
-    
-    setIsGenerating(true);
-    toast.loading('Regenerating test cases with new variations...', { id: 'regenerating' });
-
-    // Simulate AI processing delay
-    setTimeout(() => {
-      const regenerated = generateTestCases(
-        { type: sourceInfo.type as 'jira' | 'manual', content: sourceInfo.content || '', metadata: sourceInfo.metadata },
-        config,
-        [],
-        false
-      );
-      setTestCases(regenerated);
-      setIsGenerating(false);
-      toast.success(`Regenerated ${regenerated.length} test cases!`, { id: 'regenerating' });
-    }, 1500);
-  };
-  
-  const handleGenerateMore = () => {
-    if (!sourceInfo) return;
-    
-    setIsGenerating(true);
-    toast.loading('Generating additional test cases...', { id: 'generating-more' });
-
-    // Simulate AI processing delay
-    setTimeout(() => {
-      const additional = generateTestCases(
-        { type: sourceInfo.type as 'jira' | 'manual', content: sourceInfo.content || '', metadata: sourceInfo.metadata },
-        config,
-        testCases,
-        true
-      );
-      setTestCases([...testCases, ...additional]);
-      setIsGenerating(false);
-      toast.success(`Added ${additional.length} more test cases!`, { id: 'generating-more' });
-    }, 1500);
   };
 
   return (
@@ -111,69 +58,127 @@ export default function AITestCase() {
           <h1 className="text-3xl font-bold">AI Test Case Generator</h1>
         </div>
         <p className="text-muted-foreground text-lg">
-          Generate comprehensive test cases from JIRA stories or PRD documents using AI
+          Generate comprehensive test cases from your story using AI
         </p>
       </div>
 
       {/* Main Content */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left Column - Input */}
+        {/* Left Column - Input + Results */}
         <div className="lg:col-span-2 space-y-6">
           <TestCaseInput onInputSubmit={handleInputSubmit} isLoading={isGenerating} />
+
+          {/* Loading State */}
+          {isGenerating && (
+            <Card>
+              <CardContent className="py-16">
+                <div className="flex flex-col items-center justify-center gap-4">
+                  <div className="relative">
+                    <div className="size-16 rounded-full border-4 border-blue-200 dark:border-blue-900" />
+                    <Loader2 className="size-16 animate-spin text-blue-600 absolute inset-0" />
+                  </div>
+                  <div className="text-center">
+                    <h3 className="font-semibold text-lg mb-1">Generating Test Cases...</h3>
+                    <p className="text-sm text-muted-foreground">
+                      AI is analyzing your story and creating comprehensive test cases.
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      This usually takes 15-30 seconds.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
-          {testCases.length > 0 && (
+          {/* Results */}
+          {!isGenerating && testCases.length > 0 && (
             <TestCaseResults 
               testCases={testCases} 
-              sourceInfo={sourceInfo || undefined}
-              onRegenerate={handleRegenerate}
-              onGenerateMore={handleGenerateMore}
+              generationId={generationId}
             />
           )}
         </div>
 
-        {/* Right Column - Configuration */}
+        {/* Right Column - Summary Stats */}
         <div className="lg:col-span-1">
           <div className="sticky top-4 space-y-6">
-            <ConfigPanel config={config} onConfigChange={setConfig} />
-            
-            {/* Stats Card */}
-            {testCases.length > 0 && (
-              <div className="p-4 bg-card rounded-lg border shadow-sm">
-                <div className="flex items-center gap-2 mb-3">
-                  <Settings className="size-4 text-muted-foreground" />
-                  <h3 className="font-medium">Generation Stats</h3>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Total Cases:</span>
-                    <span className="font-medium">{testCases.length}</span>
+            {/* Summary Card */}
+            {summary && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <BarChart3 className="size-4" />
+                    Generation Summary
+                  </CardTitle>
+                  {generationId && (
+                    <p className="text-xs font-mono text-muted-foreground">{generationId}</p>
+                  )}
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {/* Total */}
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <span className="text-sm font-medium">Total Cases</span>
+                    <span className="text-2xl font-bold">{summary.total}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Critical:</span>
-                    <span className="font-medium text-red-600">
-                      {testCases.filter(tc => tc.priority === 'Critical').length}
-                    </span>
+
+                  {/* Priority Breakdown */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between py-2 px-3 rounded-md bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="size-3.5 text-red-600" />
+                        <span className="text-sm">Critical</span>
+                      </div>
+                      <span className="font-bold text-red-600">{summary.critical}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between py-2 px-3 rounded-md bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="size-3.5 text-orange-600" />
+                        <span className="text-sm">High</span>
+                      </div>
+                      <span className="font-bold text-orange-600">{summary.high}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between py-2 px-3 rounded-md bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900">
+                      <div className="flex items-center gap-2">
+                        <Info className="size-3.5 text-yellow-600" />
+                        <span className="text-sm">Medium</span>
+                      </div>
+                      <span className="font-bold text-yellow-600">{summary.medium}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between py-2 px-3 rounded-md bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900">
+                      <div className="flex items-center gap-2">
+                        <ArrowDown className="size-3.5 text-blue-600" />
+                        <span className="text-sm">Low</span>
+                      </div>
+                      <span className="font-bold text-blue-600">{summary.low}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">High:</span>
-                    <span className="font-medium text-orange-600">
-                      {testCases.filter(tc => tc.priority === 'High').length}
-                    </span>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Loading placeholder for stats */}
+            {isGenerating && !summary && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <BarChart3 className="size-4" />
+                    Generation Summary
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="h-14 rounded-lg bg-muted animate-pulse" />
+                    <div className="h-10 rounded-md bg-muted animate-pulse" />
+                    <div className="h-10 rounded-md bg-muted animate-pulse" />
+                    <div className="h-10 rounded-md bg-muted animate-pulse" />
+                    <div className="h-10 rounded-md bg-muted animate-pulse" />
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Medium:</span>
-                    <span className="font-medium text-yellow-600">
-                      {testCases.filter(tc => tc.priority === 'Medium').length}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Low:</span>
-                    <span className="font-medium text-blue-600">
-                      {testCases.filter(tc => tc.priority === 'Low').length}
-                    </span>
-                  </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             )}
           </div>
         </div>
@@ -187,7 +192,7 @@ export default function AITestCase() {
           </div>
           <h3 className="text-xl font-medium mb-2">Ready to Generate Test Cases</h3>
           <p className="text-muted-foreground max-w-md mx-auto">
-            Enter your JIRA story or upload a PRD document, configure your preferences, 
+            Enter your story title and description, optionally attach images,
             and let AI generate comprehensive test cases for you.
           </p>
         </div>

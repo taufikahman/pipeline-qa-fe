@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Upload, FileText, X, Loader2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Upload, FileText, X, Loader2, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -7,36 +7,55 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+const MAX_IMAGES = 3;
+const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+
 interface TestCaseInputProps {
-  onInputSubmit: (data: { type: 'jira' | 'manual', content: string, metadata?: any, file?: File }) => void;
+  onInputSubmit: (data: { type: 'jira' | 'manual', content: string, metadata?: any, file?: File, files?: File[] }) => void;
   isLoading?: boolean;
 }
 
 export function TestCaseInput({ onInputSubmit, isLoading = false }: TestCaseInputProps) {
   const [jiraStory, setJiraStory] = useState('');
   const [jiraKey, setJiraKey] = useState('');
-  const [manualInput, setManualInput] = useState('');
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [storyTitle, setStoryTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [uploadedImages, setUploadedImages] = useState<File[]>([]);
   const [activeTab, setActiveTab] = useState('jira');
+  const [titleError, setTitleError] = useState('');
+  const [descriptionError, setDescriptionError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setUploadedFile(file);
-      
-      // For PDF files, we don't read the content as text - just store the file
-      if (file.type === 'application/pdf') {
-        setManualInput(`[PDF File: ${file.name}]`);
-      } else {
-        // For text-based files, read the content
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const content = e.target?.result as string;
-          setManualInput(content);
-        };
-        reader.readAsText(file);
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    const newFiles = Array.from(files);
+    const validFiles: File[] = [];
+
+    for (const file of newFiles) {
+      if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+        continue; // Skip non-image files
       }
+      validFiles.push(file);
     }
+
+    const totalFiles = uploadedImages.length + validFiles.length;
+    if (totalFiles > MAX_IMAGES) {
+      const allowed = MAX_IMAGES - uploadedImages.length;
+      setUploadedImages(prev => [...prev, ...validFiles.slice(0, allowed)]);
+    } else {
+      setUploadedImages(prev => [...prev, ...validFiles]);
+    }
+
+    // Reset file input so the same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setUploadedImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleJiraSubmit = () => {
@@ -50,20 +69,37 @@ export function TestCaseInput({ onInputSubmit, isLoading = false }: TestCaseInpu
   };
 
   const handleManualSubmit = () => {
-    if (manualInput.trim() || uploadedFile) {
-      onInputSubmit({
-        type: 'manual',
-        content: manualInput,
-        metadata: { fileName: uploadedFile?.name },
-        file: uploadedFile || undefined
-      });
+    let hasError = false;
+
+    if (!storyTitle.trim()) {
+      setTitleError('Story Title is required');
+      hasError = true;
+    } else {
+      setTitleError('');
     }
+
+    if (!description.trim()) {
+      setDescriptionError('Description is required');
+      hasError = true;
+    } else {
+      setDescriptionError('');
+    }
+
+    if (hasError) return;
+
+    onInputSubmit({
+      type: 'manual',
+      content: description,
+      metadata: {
+        storyTitle,
+        imageCount: uploadedImages.length,
+        imageNames: uploadedImages.map(f => f.name)
+      },
+      files: uploadedImages.length > 0 ? uploadedImages : undefined
+    });
   };
 
-  const removeFile = () => {
-    setUploadedFile(null);
-    setManualInput('');
-  };
+  const isManualFormValid = storyTitle.trim() !== '' && description.trim() !== '';
 
   return (
     <Card>
@@ -115,56 +151,111 @@ export function TestCaseInput({ onInputSubmit, isLoading = false }: TestCaseInpu
           </TabsContent>
 
           <TabsContent value="manual" className="space-y-4">
+            {/* Story Title - Required */}
             <div className="space-y-2">
-              <Label>Upload PRD Document</Label>
-              <div className="border-2 border-dashed rounded-lg p-6 text-center">
-                {uploadedFile ? (
-                  <div className="flex items-center justify-between bg-muted p-3 rounded">
-                    <div className="flex items-center gap-2">
-                      <FileText className="size-5 text-blue-600" />
-                      <span className="text-sm">{uploadedFile.name}</span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={removeFile}
-                    >
-                      <X className="size-4" />
-                    </Button>
+              <Label htmlFor="story-title">
+                Story Title <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="story-title"
+                placeholder="Enter story title..."
+                value={storyTitle}
+                onChange={(e) => {
+                  setStoryTitle(e.target.value);
+                  if (e.target.value.trim()) setTitleError('');
+                }}
+                className={titleError ? 'border-red-500 focus-visible:ring-red-500' : ''}
+              />
+              {titleError && (
+                <p className="text-sm text-red-500">{titleError}</p>
+              )}
+            </div>
+
+            {/* Description - Required */}
+            <div className="space-y-2">
+              <Label htmlFor="story-description">
+                Description <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="story-description"
+                placeholder="Describe the user story or requirements in detail..."
+                rows={6}
+                value={description}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  if (e.target.value.trim()) setDescriptionError('');
+                }}
+                className={descriptionError ? 'border-red-500 focus-visible:ring-red-500' : ''}
+              />
+              {descriptionError && (
+                <p className="text-sm text-red-500">{descriptionError}</p>
+              )}
+            </div>
+
+            {/* Image Upload - Optional */}
+            <div className="space-y-2">
+              <Label>
+                Attachments <span className="text-muted-foreground text-xs font-normal">(Optional - max {MAX_IMAGES} images)</span>
+              </Label>
+              <div className="border-2 border-dashed rounded-lg p-4">
+                {/* Uploaded images preview */}
+                {uploadedImages.length > 0 && (
+                  <div className="space-y-2 mb-3">
+                    {uploadedImages.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between bg-muted p-2.5 rounded">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <ImageIcon className="size-4 text-blue-600 shrink-0" />
+                          <span className="text-sm truncate">{file.name}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            ({(file.size / 1024).toFixed(1)} KB)
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeImage(index)}
+                          className="shrink-0 h-7 w-7 p-0"
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
-                ) : (
-                  <label htmlFor="file-upload" className="cursor-pointer">
-                    <Upload className="size-8 mx-auto mb-2 text-muted-foreground" />
+                )}
+
+                {/* Upload area */}
+                {uploadedImages.length < MAX_IMAGES && (
+                  <label htmlFor="image-upload" className="cursor-pointer block text-center py-3">
+                    <Upload className="size-6 mx-auto mb-1.5 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">
-                      Click to upload or drag and drop
+                      Click to upload images
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      PDF, TXT, MD, or DOC files
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      PNG, JPG, GIF, or WEBP ({uploadedImages.length}/{MAX_IMAGES})
                     </p>
                     <input
-                      id="file-upload"
+                      ref={fileInputRef}
+                      id="image-upload"
                       type="file"
                       className="hidden"
-                      accept=".pdf,.txt,.md,.doc,.docx"
-                      onChange={handleFileUpload}
+                      accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                      multiple
+                      onChange={handleImageUpload}
                     />
                   </label>
                 )}
+
+                {uploadedImages.length >= MAX_IMAGES && (
+                  <p className="text-xs text-center text-muted-foreground py-1">
+                    Maximum {MAX_IMAGES} images reached
+                  </p>
+                )}
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="manual-input">Or paste your story/PRD</Label>
-              <Textarea
-                id="manual-input"
-                placeholder="Paste your product requirements document or user story here..."
-                rows={8}
-                value={manualInput}
-                onChange={(e) => setManualInput(e.target.value)}
-              />
-            </div>
+
             <Button 
               onClick={handleManualSubmit} 
-              disabled={(!manualInput.trim() && !uploadedFile) || isLoading}
+              disabled={!isManualFormValid || isLoading}
               className="w-full"
             >
               {isLoading ? (

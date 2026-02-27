@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, ChevronLeft, ChevronRight, LayoutDashboard, Settings, Sparkles, User } from 'lucide-react';
+import { BarChart3, ChevronLeft, ChevronRight, ImageIcon, LayoutDashboard, Settings, Sparkles, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getUploadUrl } from '@/lib/api';
 import {
@@ -36,6 +36,12 @@ const menuItems = [
     url: '/ai-testcase',
     icon: Sparkles,
     description: 'AI Test Case Generator',
+  },
+  {
+    title: 'Gallery',
+    url: '/screenshots',
+    icon: ImageIcon,
+    description: 'Upload & manage screenshots',
   },
 ];
 

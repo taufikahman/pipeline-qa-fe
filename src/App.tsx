@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Dashboard from "./pages/Dashboard";
 import Performance from "./pages/Performance";
 import AITestCase from "./pages/AITestCase";
+import Screenshots from "./pages/Screenshots";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
@@ -36,6 +37,7 @@ function ProtectedRoutes() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/performance" element={<Performance />} />
               <Route path="/ai-testcase" element={<AITestCase />} />
+              <Route path="/screenshots" element={<Screenshots />} />
               <Route path="/profile" element={<Profile />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
